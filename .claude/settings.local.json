@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm *)",
+      "PowerShell(winget install *)",
+      "PowerShell(Get-ChildItem -Recurse -File \"web\\\\node_modules\\\\next\\\\dist\\\\docs\" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName.Replace\\(\"$PWD\\\\web\\\\node_modules\\\\next\\\\dist\\\\docs\\\\\",\"\"\\) })",
+      "PowerShell(Get-CimInstance *)"
+    ]
+  }
+}
