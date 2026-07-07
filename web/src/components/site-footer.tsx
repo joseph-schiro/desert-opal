@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NewsletterSignup } from "@/components/newsletter-signup";
 
 export function SiteFooter() {
   return (
@@ -32,21 +33,23 @@ export function SiteFooter() {
         <div>
           <h4 className="font-display text-sm font-semibold text-ink">Help</h4>
           <ul className="mt-3 space-y-2 text-sm text-muted">
-            <li><span>Plant care</span></li>
-            <li><span>Shipping &amp; returns</span></li>
-            <li><span>Contact us</span></li>
+            <li><Link href="/about" className="hover:text-sage-deep">About us</Link></li>
+            <li><Link href="/faq" className="hover:text-sage-deep">FAQ</Link></li>
+            <li><Link href="/shipping" className="hover:text-sage-deep">Shipping &amp; returns</Link></li>
+            <li><Link href="/contact" className="hover:text-sage-deep">Contact us</Link></li>
           </ul>
         </div>
 
         <div>
           <h4 className="font-display text-sm font-semibold text-ink">Stay in touch</h4>
           <p className="mt-3 text-sm text-muted">
-            Follow along for new arrivals and care tips.
+            New arrivals and care tips, straight to your inbox.
           </p>
+          <NewsletterSignup />
         </div>
       </div>
       <div className="border-t border-sand-deep/40 py-4 text-center text-xs text-muted">
-        © {new Date().getFullYear()} Desert Opal Succulents &amp; Cacti. All rights reserved.
+        © {new Date().getFullYear()}  Desert Opal Succulents &amp; Cacti. All rights reserved.
       </div>
     </footer>
   );

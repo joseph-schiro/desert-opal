@@ -9,6 +9,8 @@ import {
   type Difficulty,
 } from "@/lib/catalog";
 import { PlantPhoto } from "@/components/plant-photo";
+import { AddToCartButton } from "@/components/add-to-cart-button";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 // Pre-render a page for each product at build time.
 export async function generateStaticParams() {
@@ -22,7 +24,19 @@ export async function generateMetadata(
   const { slug } = await props.params;
   const product = await getProductBySlug(slug);
   if (!product) return { title: "Not found" };
-  return { title: product.name, description: product.description };
+  const desc = product.description || `${product.name} — a hand-picked plant from Desert Opal.`;
+  return {
+    title: product.name,
+    description: desc,
+    alternates: { canonical: `/products/${product.slug}` },
+    openGraph: {
+      type: "website",
+      title: product.name,
+      description: desc,
+      url: `${SITE_URL}/products/${product.slug}`,
+      images: product.imageUrl ? [{ url: product.imageUrl }] : undefined,
+    },
+  };
 }
 
 const DIFFICULTY_STYLES: Record<Difficulty, string> = {
@@ -40,8 +54,32 @@ export default async function ProductPage(
 
   const soldOut = product.stock === 0;
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description || undefined,
+    image: product.imageUrl ? [product.imageUrl] : undefined,
+    category: CATEGORY_LABELS[product.category],
+    ...(product.scientificName ? { alternateName: product.scientificName } : {}),
+    brand: { "@type": "Brand", name: SITE_NAME },
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "USD",
+      price: (product.priceCents / 100).toFixed(2),
+      availability: soldOut
+        ? "https://schema.org/OutOfStock"
+        : "https://schema.org/InStock",
+      url: `${SITE_URL}/products/${product.slug}`,
+    },
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <nav className="mb-6 text-sm text-muted">
         <Link href="/shop" className="hover:text-sage-deep">Shop</Link>
         <span className="px-2">/</span>
@@ -57,7 +95,10 @@ export default async function ProductPage(
         <PlantPhoto
           tone={product.tone}
           emoji={product.emoji}
+          imageUrl={product.imageUrl}
+          imageAlt={product.imageAlt ?? product.name}
           size="text-9xl"
+          sizes="(max-width: 768px) 100vw, 500px"
           className="aspect-square w-full rounded-xl2 shadow-soft ring-1 ring-sand-deep/40"
         />
 
@@ -70,6 +111,11 @@ export default async function ProductPage(
             <p className="mt-1 text-lg italic text-muted">
               {product.scientificName}
             </p>
+          )}
+          {product.variegated && (
+            <span className="mt-3 inline-flex w-fit items-center gap-1 rounded-full bg-mint/60 px-3 py-1 text-sm font-semibold text-sage-deep ring-1 ring-sage/30">
+              🌿 Variegated
+            </span>
           )}
 
           <p className="mt-4 text-2xl font-semibold text-sage-deep">
@@ -104,13 +150,7 @@ export default async function ProductPage(
 
           {/* Stock + CTA */}
           <div className="mt-8 flex items-center gap-3">
-            <button
-              type="button"
-              disabled={soldOut}
-              className="flex-1 rounded-full bg-sage px-6 py-3 font-semibold text-white shadow-soft transition hover:bg-sage-deep disabled:cursor-not-allowed disabled:bg-muted/50"
-            >
-              {soldOut ? "Sold out" : "Add to cart"}
-            </button>
+            <AddToCartButton variantId={product.variantId} soldOut={soldOut} />
             <span className="text-sm text-muted">
               {product.size}
               {!soldOut && product.stock <= 4 && (
@@ -120,7 +160,6 @@ export default async function ProductPage(
               )}
             </span>
           </div>
-          {/* NOTE: checkout is wired up once the Shopify backend is connected. */}
         </div>
       </div>
     </div>

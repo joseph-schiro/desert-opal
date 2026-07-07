@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { formatPrice, type Product } from "@/lib/catalog";
+import { formatPrice } from "@/lib/format";
+import type { Product } from "@/lib/catalog";
 import { PlantPhoto } from "@/components/plant-photo";
 
 export function ProductCard({ product }: { product: Product }) {
@@ -14,6 +15,9 @@ export function ProductCard({ product }: { product: Product }) {
         <PlantPhoto
           tone={product.tone}
           emoji={product.emoji}
+          imageUrl={product.imageUrl}
+          imageAlt={product.imageAlt ?? product.name}
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 300px"
           className="aspect-square w-full transition group-hover:scale-105"
         />
         {soldOut && (
@@ -24,6 +28,11 @@ export function ProductCard({ product }: { product: Product }) {
         {!soldOut && product.stock <= 3 && (
           <span className="absolute left-3 top-3 rounded-full bg-terracotta px-3 py-1 text-xs font-semibold text-white">
             Only {product.stock} left
+          </span>
+        )}
+        {product.variegated && (
+          <span className="absolute right-3 top-3 rounded-full bg-mint/90 px-2.5 py-1 text-xs font-semibold text-sage-deep shadow-sm">
+            🌿 Variegated
           </span>
         )}
       </div>

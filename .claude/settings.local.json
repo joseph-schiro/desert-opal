@@ -4,7 +4,26 @@
       "PowerShell(npm *)",
       "PowerShell(winget install *)",
       "PowerShell(Get-ChildItem -Recurse -File \"web\\\\node_modules\\\\next\\\\dist\\\\docs\" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName.Replace\\(\"$PWD\\\\web\\\\node_modules\\\\next\\\\dist\\\\docs\\\\\",\"\"\\) })",
-      "PowerShell(Get-CimInstance *)"
+      "PowerShell(Get-CimInstance *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"---tsc exit: $?---\")",
+      "Bash(npx next *)",
+      "Bash(curl *)",
+      "Bash(git mv *)",
+      "Bash(node *)",
+      "WebSearch",
+      "WebFetch(domain:shopify.dev)",
+      "Bash(git rm *)",
+      "Bash(python -c \"import openpyxl; print\\('openpyxl available'\\)\")",
+      "Bash(mkdir -p __TRACKED_VAR__/xlsx)",
+      "Bash(cp docs/do_plants.xlsx __TRACKED_VAR__/xlsx/book.zip)",
+      "Bash(unzip -o book.zip)",
+      "Bash(npm install *)",
+      "Bash(echo \"resend installed: $\\(node -e \"console.log\\(require\\('resend/package.json'\\).version\\)\"\\)\")",
+      "Bash(cat .gitignore)",
+      "Bash(cat web/.gitignore)",
+      "Bash(git add *)",
+      "Bash(gh auth *)"
     ]
   }
 }

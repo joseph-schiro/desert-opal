@@ -24,7 +24,7 @@ export default async function HomePage() {
             Little desert treasures for your windowsill
           </h1>
           <p className="max-w-xl text-lg text-ink/70">
-            Hand-picked succulents and cacti in soft, opal-pretty pastels.
+            Hand-picked succulents and cacti.
             Easy to love, easy to keep alive.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
@@ -34,12 +34,12 @@ export default async function HomePage() {
             >
               Shop the collection
             </Link>
-            <Link
+            {/* <Link
               href="/shop?category=succulents"
               className="rounded-full bg-white/80 px-6 py-3 font-semibold text-sage-deep ring-1 ring-sage/40 transition hover:bg-white"
             >
               Browse succulents
-            </Link>
+            </Link> */}
           </div>
         </div>
       </section>

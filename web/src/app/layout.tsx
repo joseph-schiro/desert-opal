@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Nunito } from "next/font/google";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 // Fraunces: a soft, boutique serif for headings (professional + a little charming)
@@ -17,12 +18,21 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Desert Opal Succulents & Cacti",
+    default: SITE_NAME,
     template: "%s · Desert Opal",
   },
   description:
     "Hand-picked succulents, cacti, and desert treasures. Grown with love, shipped with care.",
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description:
+      "Hand-picked succulents, cacti, and desert treasures. Grown with love, shipped with care.",
+    url: SITE_URL,
+  },
 };
 
 export default function RootLayout({

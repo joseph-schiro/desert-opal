@@ -2,12 +2,14 @@
  * Catalog data layer.
  *
  * This is the ONLY place the rest of the app talks to for product data.
- * Right now it returns hand-written mock plants. When the Shopify store is
- * ready, we swap the bodies of these functions to call the Shopify Storefront
- * API and map the results into this same `Product` shape — every page/component
- * keeps working untouched. The types below deliberately mirror Shopify's model
- * (money as minor units, handle/slug, variants-as-stock) to make that painless.
+ * When Shopify is configured (see `.env.local`) these functions return live
+ * products from the Storefront API, mapped into the `Product` shape below.
+ * Until then — or if Shopify is empty / unreachable — they fall back to the
+ * hand-written mock plants, so the site always renders. The types mirror
+ * Shopify's model (money as minor units, handle/slug, variants-as-stock).
  */
+
+import { getShopifyProducts, isShopifyConfigured } from "./shopify";
 
 export type Category = "succulents" | "cacti" | "accessories";
 
@@ -18,6 +20,8 @@ export type Tone = "sage" | "blush" | "lavender" | "mint" | "peach" | "sky";
 
 export interface Product {
   id: string;
+  /** Shopify variant GraphQL id for the buyable variant — needed for cart/checkout. */
+  variantId?: string;
   /** URL-safe identifier (Shopify calls this the "handle"). */
   slug: string;
   name: string;
@@ -31,9 +35,14 @@ export interface Product {
   description: string;
   care: { light: string; water: string; difficulty: Difficulty };
   tone: Tone;
+  /** Whether the plant has variegated (multi-colored) foliage. */
+  variegated?: boolean;
   featured?: boolean;
   /** Placeholder emoji shown on the tinted card until a real photo is added. */
   emoji: string;
+  /** Real product photo URL from Shopify, when available. */
+  imageUrl?: string;
+  imageAlt?: string;
 }
 
 export const CATEGORY_LABELS: Record<Category, string> = {
@@ -45,7 +54,8 @@ export const CATEGORY_LABELS: Record<Category, string> = {
 /** Threshold under which the admin flags a product as "low stock". */
 export const LOW_STOCK_THRESHOLD = 4;
 
-const PRODUCTS: Product[] = [
+/** Fallback catalog used until Shopify is configured & stocked (or if it's unreachable). */
+const MOCK_PRODUCTS: Product[] = [
   {
     id: "1",
     slug: "opal-echeveria",
@@ -185,29 +195,37 @@ const PRODUCTS: Product[] = [
   },
 ];
 
-// Simulate async I/O so swapping in the real Shopify API is a drop-in change.
-const tick = <T,>(value: T): Promise<T> => Promise.resolve(value);
-
-export function getAllProducts(): Promise<Product[]> {
-  return tick(PRODUCTS);
+/**
+ * Every product. Pulls live from Shopify when configured; otherwise (or on any
+ * error, or an empty store) transparently falls back to the mock catalog so the
+ * storefront never renders blank. All other getters build on this one.
+ */
+export async function getAllProducts(): Promise<Product[]> {
+  if (!isShopifyConfigured()) return MOCK_PRODUCTS;
+  try {
+    const live = await getShopifyProducts();
+    return live.length > 0 ? live : MOCK_PRODUCTS;
+  } catch (err) {
+    console.warn("[catalog] Shopify fetch failed, using mock data:", err);
+    return MOCK_PRODUCTS;
+  }
 }
 
-export function getProductBySlug(slug: string): Promise<Product | undefined> {
-  return tick(PRODUCTS.find((p) => p.slug === slug));
+export async function getProductBySlug(slug: string): Promise<Product | undefined> {
+  const products = await getAllProducts();
+  return products.find((p) => p.slug === slug);
 }
 
-export function getFeaturedProducts(): Promise<Product[]> {
-  return tick(PRODUCTS.filter((p) => p.featured));
+export async function getFeaturedProducts(): Promise<Product[]> {
+  const products = await getAllProducts();
+  return products.filter((p) => p.featured);
 }
 
-export function getProductsByCategory(category: Category): Promise<Product[]> {
-  return tick(PRODUCTS.filter((p) => p.category === category));
+export async function getProductsByCategory(category: Category): Promise<Product[]> {
+  const products = await getAllProducts();
+  return products.filter((p) => p.category === category);
 }
 
-/** Money helper: cents -> "$18.00". */
-export function formatPrice(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
+// Re-exported from the leaf `format` module so client components can import the
+// money helper without pulling in this server-side data layer.
+export { formatPrice } from "./format";

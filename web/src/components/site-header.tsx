@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CartBadge } from "./cart-badge";
 
 const NAV = [
   { href: "/shop", label: "Shop All" },
@@ -44,6 +45,7 @@ export function SiteHeader() {
           >
             Shop
           </Link>
+          <CartBadge />
         </div>
       </div>
     </header>

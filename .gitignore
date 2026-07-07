@@ -12,6 +12,11 @@
 # Logs
 *.log
 
+# Secrets / private business docs (never push these)
+*.kdbx
+/docs/*.pdf
+/docs/*.xlsx
+
 # OS / editor
 .DS_Store
 Thumbs.db

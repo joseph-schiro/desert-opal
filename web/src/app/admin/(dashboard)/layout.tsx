@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { requireAdmin } from "@/lib/dal";
+import { logoutAction } from "../login/actions";
 
 export const metadata: Metadata = {
   title: { default: "Admin", template: "%s · Desert Opal Admin" },
@@ -9,17 +11,21 @@ const NAV = [
   { href: "/admin", label: "Dashboard", emoji: "📊" },
   { href: "/admin/products", label: "Inventory", emoji: "🌿" },
   { href: "/admin/orders", label: "Orders", emoji: "📦" },
+  { href: "/admin/newsletter", label: "Newsletter", emoji: "✉️" },
+  { href: "/admin/users", label: "Users", emoji: "👥" },
   { href: "/admin/settings", label: "Settings", emoji: "⚙️" },
 ];
 
-// Admin shell — deliberately separate from the storefront layout. This section
-// is where inventory, metrics, and (later) orders live. Note: this is NOT yet
-// protected by authentication; that's the first thing to add before going live.
-export default function AdminLayout({
+// Admin shell — deliberately separate from the storefront layout. Proxy gates
+// these routes; we also `requireAdmin()` here as defense in depth and to show
+// who's signed in.
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const username = await requireAdmin();
+
   return (
     <div className="flex min-h-screen bg-sand/40">
       <aside className="hidden w-60 flex-col border-r border-sand-deep/40 bg-white/70 p-4 md:flex">
@@ -42,12 +48,26 @@ export default function AdminLayout({
             </Link>
           ))}
         </nav>
-        <Link
-          href="/"
-          className="mt-auto rounded-lg px-3 py-2 text-sm text-muted transition hover:text-sage-deep"
-        >
-          ← View storefront
-        </Link>
+
+        <div className="mt-auto space-y-1 border-t border-sand-deep/40 pt-3">
+          <p className="px-3 text-xs text-muted">
+            Signed in as <span className="font-semibold text-ink/80">{username}</span>
+          </p>
+          <Link
+            href="/"
+            className="block rounded-lg px-3 py-2 text-sm text-muted transition hover:text-sage-deep"
+          >
+            ← View storefront
+          </Link>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="w-full rounded-lg px-3 py-2 text-left text-sm text-muted transition hover:text-terracotta"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
       </aside>
 
       <div className="flex-1">
