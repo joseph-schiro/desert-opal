@@ -32,7 +32,7 @@ export function CartBadge() {
     <Link
       href="/cart"
       aria-label={`Cart, ${count} item${count === 1 ? "" : "s"}`}
-      className="relative rounded-full border border-sand-deep/50 bg-cream px-4 py-2 text-sm font-semibold text-ink transition hover:border-sage hover:text-sage-deep"
+      className="relative rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sage-deep"
     >
       Cart
       {count > 0 && (

@@ -12,16 +12,12 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     a: "Yes! Every plant is a real, living succulent or cactus that we grow and hand-pick ourselves.",
   },
   {
-    q: "What does “one-of-a-kind” mean?",
-    a: "Many of our plants are unique individuals — a single rooted plant rather than mass-grown stock. The photo (once added) is the actual plant you'll receive, and once it sells, that exact one is gone.",
-  },
-  {
     q: "How are plants shipped?",
     a: "Plants are carefully cleaned, wrapped, and boxed to travel safely. Succulents and cacti are wonderfully hardy and handle shipping well. (Please review your exact shipping timeframe and carrier here.)",
   },
   {
     q: "Do you offer local pickup?",
-    a: "If you're nearby, reach out — we're happy to arrange local pickup and save you the shipping. (Update this with your pickup details.)",
+    a: "If you're nearby, reach out. We're happy to arrange local pickup and save you the shipping. (Update this with your pickup details.)",
   },
   {
     q: "What if my plant arrives damaged?",
@@ -33,7 +29,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: "What does “variegated” mean?",
-    a: "Variegated plants have multi-colored foliage — streaks or patches of cream, pink, or lighter green. They're prized for their unusual look. Look for the 🌿 Variegated badge.",
+    a: "Variegated plants have multi-colored foliage, streaks or patches of cream, pink, or lighter green. They're prized for their unusual look. Look for the 🌿 Variegated badge.",
   },
 ];
 
@@ -64,8 +60,7 @@ export default function FaqPage() {
         Still curious?{" "}
         <Link href="/contact" className="font-semibold text-sage-deep hover:underline">
           Get in touch
-        </Link>{" "}
-        — we&apos;re happy to help.
+        </Link>{" "} - we&apos;re happy to help.
       </p>
     </div>
   );

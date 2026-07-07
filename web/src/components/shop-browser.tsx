@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ProductCard } from "@/components/product-card";
 import type { Category, Product } from "@/lib/catalog";
 
@@ -13,15 +14,34 @@ const CATEGORY_PILLS: { value: Category | "all"; label: string }[] = [
 
 type SortKey = "name" | "price-asc" | "price-desc";
 
-export function ShopBrowser({
-  products,
-  initialCategory = "all",
-}: {
-  products: Product[];
-  initialCategory?: Category | "all";
-}) {
+const CATEGORY_VALUES = new Set<string>(
+  CATEGORY_PILLS.map((p) => p.value),
+);
+
+export function ShopBrowser({ products }: { products: Product[] }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // The active category lives in the URL (?category=…) so the header nav links
+  // and the pills below stay in sync. Reading it from useSearchParams (rather
+  // than a useState seed) means soft client-side navigations update the filter
+  // immediately, without needing a full page refresh.
+  const categoryParam = searchParams.get("category");
+  const category: Category | "all" =
+    categoryParam && CATEGORY_VALUES.has(categoryParam)
+      ? (categoryParam as Category)
+      : "all";
+
+  const setCategory = (value: Category | "all") => {
+    const params = new URLSearchParams(searchParams);
+    if (value === "all") params.delete("category");
+    else params.set("category", value);
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
   const [q, setQ] = useState("");
-  const [category, setCategory] = useState<Category | "all">(initialCategory);
   const [sort, setSort] = useState<SortKey>("name");
   const [variegatedOnly, setVariegatedOnly] = useState(false);
   const [inStockOnly, setInStockOnly] = useState(false);

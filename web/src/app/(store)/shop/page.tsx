@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
-import { getAllProducts, type Category } from "@/lib/catalog";
+import { Suspense } from "react";
+import { getAllProducts } from "@/lib/catalog";
 import { ShopBrowser } from "@/components/shop-browser";
 
 export const metadata: Metadata = { title: "Shop" };
 
-export default async function ShopPage(props: PageProps<"/shop">) {
-  // In Next.js 16, searchParams is async and must be awaited.
-  // The header nav deep-links here with ?category=… — use it as the initial filter.
-  const { category } = await props.searchParams;
-  const initialCategory = (typeof category === "string" ? category : "all") as
-    | Category
-    | "all";
-
+export default async function ShopPage() {
+  // The header nav deep-links here with ?category=… — ShopBrowser reads that
+  // straight from the URL (via useSearchParams) so it stays in sync on soft
+  // client-side navigations.
   const products = await getAllProducts();
 
   return (
@@ -21,7 +18,9 @@ export default async function ShopPage(props: PageProps<"/shop">) {
         <p className="mt-2 text-ink/60">Find a little green friend to bring home.</p>
       </header>
 
-      <ShopBrowser products={products} initialCategory={initialCategory} />
+      <Suspense fallback={null}>
+        <ShopBrowser products={products} />
+      </Suspense>
     </div>
   );
 }

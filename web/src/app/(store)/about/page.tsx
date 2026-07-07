@@ -15,14 +15,14 @@ export default function AboutPage() {
 
       <div className="mt-6 space-y-5 text-lg leading-relaxed text-ink/75">
         <p>
-          Desert Opal started the way most good things do — with two people who
+          Desert Opal started the way most good things do. with two people who
           couldn&apos;t stop bringing home plants. What began as a windowsill full
           of succulents turned into a shared obsession with the strange, sculptural,
           endlessly charming world of succulents and cacti.
         </p>
         <p>
           We hand-pick and grow every plant ourselves, so a lot of what you&apos;ll
-          find here is genuinely <strong>one-of-a-kind</strong> — a single rooted
+          find here is genuinely <strong>one-of-a-kind</strong>, a single rooted
           cutting, a particularly pretty rosette, a variegated oddball we
           couldn&apos;t resist. When it&apos;s gone, it&apos;s gone, which is half
           the fun.
@@ -37,7 +37,7 @@ export default function AboutPage() {
       <div className="mt-10 rounded-xl2 bg-sage-soft/50 p-6">
         <h2 className="font-display text-xl font-semibold text-ink">Why &ldquo;Desert Opal&rdquo;?</h2>
         <p className="mt-2 text-ink/70">
-          Opals are formed slowly, quietly, and every one is different — a lot like
+          Opals are formed slowly, quietly, and every one is different, a lot like
           a well-grown succulent. The name felt right for a shop full of small,
           slow-made treasures.
         </p>

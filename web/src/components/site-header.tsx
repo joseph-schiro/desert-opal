@@ -39,12 +39,6 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/shop"
-            className="rounded-full bg-sage px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sage-deep"
-          >
-            Shop
-          </Link>
           <CartBadge />
         </div>
       </div>
