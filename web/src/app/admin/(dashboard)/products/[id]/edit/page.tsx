@@ -26,15 +26,26 @@ export default async function EditProductPage({
         <span className="text-ink/70">Edit</span>
       </nav>
 
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between gap-4">
         <h1 className="text-3xl font-semibold text-ink">{product.title}</h1>
-        {product.status === "DRAFT" && (
-          <span className="rounded-full bg-ink/80 px-2.5 py-0.5 text-xs font-semibold text-cream">
-            Draft (hidden)
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {product.status === "DRAFT" && (
+            <span className="rounded-full bg-ink/80 px-2.5 py-0.5 text-xs font-semibold text-cream">
+              Draft (hidden)
+            </span>
+          )}
+          <Link
+            href={`/admin/products/new?from=${product.legacyId}`}
+            className="rounded-full border border-sage/60 bg-white px-4 py-2 text-sm font-semibold text-sage-deep transition hover:bg-sage/10"
+          >
+            ⧉ Duplicate
+          </Link>
+        </div>
       </div>
-      <p className="mt-1 text-ink/60">Edit details, stock, or delist this product.</p>
+      <p className="mt-1 text-ink/60">
+        Edit details, stock, or delist this product. Use <strong>Duplicate</strong>{" "}
+        to add another plant of the same kind quickly.
+      </p>
 
       <div className="mt-6">
         <ProductForm action={updateProductAction} product={product} />

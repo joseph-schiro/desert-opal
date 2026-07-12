@@ -40,9 +40,11 @@ export interface Product {
   featured?: boolean;
   /** Placeholder emoji shown on the tinted card until a real photo is added. */
   emoji: string;
-  /** Real product photo URL from Shopify, when available. */
+  /** Real product photo URL from Shopify, when available (the featured image). */
   imageUrl?: string;
   imageAlt?: string;
+  /** Full photo gallery (featured image first); empty when none uploaded. */
+  images?: { url: string; altText?: string }[];
 }
 
 export const CATEGORY_LABELS: Record<Category, string> = {
@@ -204,7 +206,11 @@ export async function getAllProducts(): Promise<Product[]> {
   if (!isShopifyConfigured()) return MOCK_PRODUCTS;
   try {
     const live = await getShopifyProducts();
-    return live.length > 0 ? live : MOCK_PRODUCTS;
+    // Empty store -> show the mock catalog so the site never renders blank.
+    if (live.length === 0) return MOCK_PRODUCTS;
+    // One-of-a-kind model: a plant with no stock is sold, so drop it from the
+    // storefront entirely (it stays visible in /admin via the Admin API).
+    return live.filter((p) => p.stock > 0);
   } catch (err) {
     console.warn("[catalog] Shopify fetch failed, using mock data:", err);
     return MOCK_PRODUCTS;

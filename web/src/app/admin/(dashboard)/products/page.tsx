@@ -4,7 +4,6 @@ import {
   getAllProducts,
   formatPrice,
   CATEGORY_LABELS,
-  LOW_STOCK_THRESHOLD,
 } from "@/lib/catalog";
 import { getAdminProducts, isAdminConfigured } from "@/lib/shopify-admin";
 import { InventoryTable, type InventoryRow } from "./inventory-table";
@@ -37,6 +36,7 @@ export default async function AdminInventory({
       imageUrl: p.imageUrl,
       variegated: p.variegated,
       editHref: `/admin/products/${p.legacyId}/edit`,
+      duplicateHref: `/admin/products/new?from=${p.legacyId}`,
       status: p.status,
     }));
   } else {
@@ -92,7 +92,7 @@ export default async function AdminInventory({
         </div>
       )}
 
-      <InventoryTable rows={rows} adminReady={adminReady} lowStockThreshold={LOW_STOCK_THRESHOLD} />
+      <InventoryTable rows={rows} adminReady={adminReady} />
 
       {!adminReady && (
         <p className="mt-4 text-xs text-muted">

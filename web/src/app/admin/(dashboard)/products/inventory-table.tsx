@@ -20,20 +20,19 @@ export interface InventoryRow {
   imageUrl?: string;
   variegated?: boolean;
   editHref?: string;
+  duplicateHref?: string;
   status?: ProductStatus;
 }
 
-type SortKey = "title" | "priceCents" | "stock" | "status";
-type StockFilter = "all" | "in" | "low" | "out";
+type SortKey = "title" | "priceCents" | "status";
+type StockFilter = "all" | "in" | "out";
 
 export function InventoryTable({
   rows,
   adminReady,
-  lowStockThreshold,
 }: {
   rows: InventoryRow[];
   adminReady: boolean;
-  lowStockThreshold: number;
 }) {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<Category | "all">("all");
@@ -53,8 +52,7 @@ export function InventoryTable({
       if (category !== "all" && r.category !== category) return false;
       if (adminReady && status !== "all" && r.status !== status) return false;
       if (variegatedOnly && !r.variegated) return false;
-      if (stock === "in" && r.stock <= lowStockThreshold) return false;
-      if (stock === "low" && !(r.stock > 0 && r.stock <= lowStockThreshold)) return false;
+      if (stock === "in" && r.stock <= 0) return false;
       if (stock === "out" && r.stock !== 0) return false;
       return true;
     });
@@ -68,7 +66,7 @@ export function InventoryTable({
       return cmp * dir;
     });
     return list;
-  }, [rows, q, category, status, stock, variegatedOnly, sortKey, sortDir, adminReady, lowStockThreshold]);
+  }, [rows, q, category, status, stock, variegatedOnly, sortKey, sortDir, adminReady]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -113,10 +111,9 @@ export function InventoryTable({
           </select>
         )}
         <select value={stock} onChange={(e) => setStock(e.target.value as StockFilter)} className={selectClass}>
-          <option value="all">Any stock</option>
-          <option value="in">In stock</option>
-          <option value="low">Low stock</option>
-          <option value="out">Out of stock</option>
+          <option value="all">All</option>
+          <option value="in">Available</option>
+          <option value="out">Sold</option>
         </select>
         <label className="flex items-center gap-2 rounded-full border border-sand-deep/50 bg-white px-3 py-2 text-sm text-ink">
           <input type="checkbox" checked={variegatedOnly} onChange={(e) => setVariegatedOnly(e.target.checked)} className="h-4 w-4 rounded border-sand-deep/50" />
@@ -149,11 +146,6 @@ export function InventoryTable({
                 </button>
               </th>
               <th className="px-4 py-3 font-semibold">
-                <button type="button" onClick={() => toggleSort("stock")} className="uppercase tracking-wide hover:text-sage-deep">
-                  Stock{arrow("stock")}
-                </button>
-              </th>
-              <th className="px-4 py-3 font-semibold">
                 {adminReady ? (
                   <button type="button" onClick={() => toggleSort("status")} className="uppercase tracking-wide hover:text-sage-deep">
                     Status{arrow("status")}
@@ -166,9 +158,9 @@ export function InventoryTable({
           <tbody className="divide-y divide-sand-deep/30">
             {filtered.map((r) => {
               const badge =
-                r.stock === 0 ? { label: "Out of stock", className: "bg-ink/80 text-cream" }
-                : r.stock <= lowStockThreshold ? { label: "Low", className: "bg-terracotta text-white" }
-                : { label: "In stock", className: "bg-mint text-sage-deep" };
+                r.stock === 0
+                  ? { label: "Sold", className: "bg-ink/80 text-cream" }
+                  : { label: "Available", className: "bg-mint text-sage-deep" };
               return (
                 <tr key={r.key} className="transition hover:bg-sand/30">
                   <td className="px-4 py-3">
@@ -187,7 +179,6 @@ export function InventoryTable({
                   </td>
                   <td className="px-4 py-3 text-ink/70">{r.categoryLabel}</td>
                   <td className="px-4 py-3 font-medium text-ink">{r.priceLabel}</td>
-                  <td className="px-4 py-3 font-medium text-ink">{r.stock}</td>
                   <td className="px-4 py-3">
                     {r.status === "DRAFT" ? (
                       <span className="inline-block rounded-full bg-ink/80 px-2.5 py-0.5 text-xs font-semibold text-cream">Draft</span>
@@ -197,7 +188,14 @@ export function InventoryTable({
                   </td>
                   {adminReady && (
                     <td className="px-4 py-3 text-right">
-                      {r.editHref && <Link href={r.editHref} className="text-sm font-semibold text-sage-deep hover:underline">Edit</Link>}
+                      <div className="flex items-center justify-end gap-3">
+                        {r.duplicateHref && (
+                          <Link href={r.duplicateHref} className="text-sm font-semibold text-sage-deep hover:underline" title="Create a new plant of the same kind">
+                            ⧉ Duplicate
+                          </Link>
+                        )}
+                        {r.editHref && <Link href={r.editHref} className="text-sm font-semibold text-sage-deep hover:underline">Edit</Link>}
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -205,7 +203,7 @@ export function InventoryTable({
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={adminReady ? 6 : 5} className="px-4 py-10 text-center text-sm text-muted">
+                <td colSpan={adminReady ? 5 : 4} className="px-4 py-10 text-center text-sm text-muted">
                   No products match your filters.
                 </td>
               </tr>

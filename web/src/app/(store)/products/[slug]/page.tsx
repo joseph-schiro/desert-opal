@@ -8,7 +8,7 @@ import {
   CATEGORY_LABELS,
   type Difficulty,
 } from "@/lib/catalog";
-import { PlantPhoto } from "@/components/plant-photo";
+import { ProductGallery } from "@/components/product-gallery";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -34,7 +34,11 @@ export async function generateMetadata(
       title: product.name,
       description: desc,
       url: `${SITE_URL}/products/${product.slug}`,
-      images: product.imageUrl ? [{ url: product.imageUrl }] : undefined,
+      images: product.images?.length
+        ? product.images.map((i) => ({ url: i.url }))
+        : product.imageUrl
+          ? [{ url: product.imageUrl }]
+          : undefined,
     },
   };
 }
@@ -59,7 +63,11 @@ export default async function ProductPage(
     "@type": "Product",
     name: product.name,
     description: product.description || undefined,
-    image: product.imageUrl ? [product.imageUrl] : undefined,
+    image: product.images?.length
+      ? product.images.map((i) => i.url)
+      : product.imageUrl
+        ? [product.imageUrl]
+        : undefined,
     category: CATEGORY_LABELS[product.category],
     ...(product.scientificName ? { alternateName: product.scientificName } : {}),
     brand: { "@type": "Brand", name: SITE_NAME },
@@ -92,14 +100,17 @@ export default async function ProductPage(
       </nav>
 
       <div className="grid gap-8 md:grid-cols-2">
-        <PlantPhoto
+        <ProductGallery
+          images={
+            product.images && product.images.length > 0
+              ? product.images
+              : product.imageUrl
+                ? [{ url: product.imageUrl, altText: product.imageAlt }]
+                : []
+          }
           tone={product.tone}
           emoji={product.emoji}
-          imageUrl={product.imageUrl}
-          imageAlt={product.imageAlt ?? product.name}
-          size="text-9xl"
-          sizes="(max-width: 768px) 100vw, 500px"
-          className="aspect-square w-full rounded-xl2 shadow-soft ring-1 ring-sand-deep/40"
+          name={product.name}
         />
 
         <div className="flex flex-col">
@@ -151,14 +162,7 @@ export default async function ProductPage(
           {/* Stock + CTA */}
           <div className="mt-8 flex items-center gap-3">
             <AddToCartButton variantId={product.variantId} soldOut={soldOut} />
-            <span className="text-sm text-muted">
-              {product.size}
-              {!soldOut && product.stock <= 4 && (
-                <span className="ml-2 font-semibold text-terracotta">
-                  · Only {product.stock} left
-                </span>
-              )}
-            </span>
+            <span className="text-sm text-muted">{product.size}</span>
           </div>
         </div>
       </div>

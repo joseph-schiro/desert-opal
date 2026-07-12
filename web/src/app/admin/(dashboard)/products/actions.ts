@@ -8,9 +8,12 @@ import {
   updateProduct,
   deleteProduct,
   isAdminConfigured,
-  uploadImage,
+  uploadImages,
 } from "@/lib/shopify-admin";
 import type { Category } from "@/lib/catalog";
+import type { WeightUnit } from "@/lib/shopify-admin";
+
+const WEIGHT_UNITS: WeightUnit[] = ["OUNCES", "POUNDS", "GRAMS", "KILOGRAMS"];
 
 export interface ProductFormState {
   error?: string;
@@ -33,6 +36,8 @@ interface ParsedForm {
   title: string;
   priceDollars: string;
   stock: number;
+  weight?: number;
+  weightUnit: WeightUnit;
   status: "ACTIVE" | "DRAFT";
   productType: string;
   descriptionHtml: string;
@@ -50,7 +55,26 @@ function parseForm(formData: FormData): { error: string } | { data: ParsedForm }
     return { error: "Enter a valid price." };
   }
 
+  const weightRaw = get("weight");
+  const weight = weightRaw ? Number(weightRaw) : undefined;
+  if (weight != null && (isNaN(weight) || weight < 0)) {
+    return { error: "Enter a valid weight." };
+  }
+  const weightUnitRaw = get("weightUnit") as WeightUnit;
+  const weightUnit = WEIGHT_UNITS.includes(weightUnitRaw) ? weightUnitRaw : "OUNCES";
+
   const category = get("category") as Category;
+
+  // One-of-a-kind plants don't carry a quantity — they're available (1) or
+  // sold (0), driven by the form's Available toggle. Accessories (pots, kits)
+  // are restockable, so they keep a real numeric quantity.
+  const isPlant = category !== "accessories";
+  const stock = isPlant
+    ? formData.get("available")
+      ? 1
+      : 0
+    : Math.max(0, parseInt(get("stock") || "0", 10) || 0);
+
   const metafields = [
     metafield("scientific_name", get("scientificName")),
     metafield("size", get("size")),
@@ -67,7 +91,9 @@ function parseForm(formData: FormData): { error: string } | { data: ParsedForm }
     data: {
       title,
       priceDollars,
-      stock: Math.max(0, parseInt(get("stock") || "0", 10) || 0),
+      stock,
+      weight,
+      weightUnit,
       status: get("status") === "draft" ? "DRAFT" : "ACTIVE",
       productType: CATEGORY_TO_TYPE[category] ?? "Succulents",
       descriptionHtml: get("description"),
@@ -76,13 +102,12 @@ function parseForm(formData: FormData): { error: string } | { data: ParsedForm }
   };
 }
 
-/** Upload the form's image file if one was provided. Returns the staged source or undefined. */
-async function maybeUploadImage(formData: FormData): Promise<string | undefined> {
-  const file = formData.get("image");
-  if (file instanceof File && file.size > 0) {
-    return uploadImage(file);
-  }
-  return undefined;
+/** Upload any image files the form provided. Returns their staged sources (or []). */
+async function maybeUploadImages(formData: FormData): Promise<string[]> {
+  const files = formData
+    .getAll("images")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  return files.length ? uploadImages(files) : [];
 }
 
 export async function createProductAction(
@@ -98,7 +123,7 @@ export async function createProductAction(
   if ("error" in parsed) return { error: parsed.error };
 
   try {
-    const imageSource = await maybeUploadImage(formData);
+    const imageSources = await maybeUploadImages(formData);
     await createProduct({
       title: parsed.data.title,
       descriptionHtml: parsed.data.descriptionHtml,
@@ -107,8 +132,10 @@ export async function createProductAction(
       status: parsed.data.status,
       priceDollars: parsed.data.priceDollars,
       stock: parsed.data.stock,
+      weight: parsed.data.weight,
+      weightUnit: parsed.data.weightUnit,
       metafields: parsed.data.metafields,
-      imageSource,
+      imageSources,
     });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create product." };
@@ -136,7 +163,7 @@ export async function updateProductAction(
   if ("error" in parsed) return { error: parsed.error };
 
   try {
-    const imageSource = await maybeUploadImage(formData);
+    const imageSources = await maybeUploadImages(formData);
     await updateProduct({
       id,
       title: parsed.data.title,
@@ -146,10 +173,12 @@ export async function updateProductAction(
       status: parsed.data.status,
       priceDollars: parsed.data.priceDollars,
       stock: parsed.data.stock,
+      weight: parsed.data.weight,
+      weightUnit: parsed.data.weightUnit,
       variantId,
       inventoryItemId,
       metafields: parsed.data.metafields,
-      imageSource,
+      imageSources,
     });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to update product." };

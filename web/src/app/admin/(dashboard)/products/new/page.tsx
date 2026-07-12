@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/dal";
-import { isAdminConfigured } from "@/lib/shopify-admin";
+import { getAdminProduct, isAdminConfigured } from "@/lib/shopify-admin";
 import { ProductForm } from "./product-form";
 import { createProductAction } from "../actions";
 
 export const metadata: Metadata = { title: "New Product" };
 
-export default async function NewProductPage() {
+export default async function NewProductPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>;
+}) {
   await requireAdmin();
   const adminReady = isAdminConfigured();
+
+  // "Duplicate" flow: ?from=<legacyId> pre-fills the form from an existing plant
+  // (a huge time-saver when adding many plants of the same species). The image
+  // and stock intentionally start fresh — each physical plant needs its own photo.
+  const { from } = await searchParams;
+  const prefill = from && adminReady ? await getAdminProduct(from) : null;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -18,12 +28,16 @@ export default async function NewProductPage() {
           Inventory
         </Link>
         <span className="px-2">/</span>
-        <span className="text-ink/70">New product</span>
+        <span className="text-ink/70">{prefill ? "Duplicate" : "New product"}</span>
       </nav>
 
-      <h1 className="text-3xl font-semibold text-ink">New product</h1>
+      <h1 className="text-3xl font-semibold text-ink">
+        {prefill ? "Duplicate plant" : "New product"}
+      </h1>
       <p className="mt-1 text-ink/60">
-        This creates the product directly in Shopify and publishes it to your store.
+        {prefill
+          ? "Prefilled from an existing plant — swap the photo, tweak the details, and save it as its own listing."
+          : "This creates the product directly in Shopify and publishes it to your store."}
       </p>
 
       {!adminReady && (
@@ -36,7 +50,7 @@ export default async function NewProductPage() {
       )}
 
       <div className="mt-6">
-        <ProductForm action={createProductAction} />
+        <ProductForm action={createProductAction} prefill={prefill ?? undefined} />
       </div>
     </div>
   );

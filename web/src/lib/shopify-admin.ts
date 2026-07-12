@@ -152,18 +152,66 @@ export interface ProductInput {
   status: "ACTIVE" | "DRAFT";
   priceDollars: string;
   stock: number;
+  /** Shipping weight for this plant (drives Shopify's shipping rates). */
+  weight?: number;
+  weightUnit?: WeightUnit;
   /** Boutique fields stored as `desertopal` metafields (all optional). */
   metafields?: { key: string; value: string; type: string }[];
-  /** Staged-upload resourceUrl for a product image (from `uploadImage`). */
-  imageSource?: string;
+  /** Staged-upload resourceUrls for product images (from `uploadImages`). The
+   *  first becomes the featured image. */
+  imageSources?: string[];
 }
 
 // --- Image upload (staged upload -> push bytes -> attach via product files) --
+const EXT_MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+/**
+ * Normalize a browser-uploaded image into bytes Shopify accepts. iPhone photos
+ * are HEIC — a format Shopify (and browsers) reject, and whose mimeType arrives
+ * as `application/octet-stream` — so we transcode those to JPEG. For other
+ * images we just fix a missing/garbage mimeType by inferring from the extension.
+ */
+async function normalizeImageForUpload(
+  file: File
+): Promise<{ body: ArrayBuffer; mimeType: string; filename: string }> {
+  const name = file.name || "image";
+  const ext = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
+  const type = (file.type || "").toLowerCase();
+  const arrayBuf = await file.arrayBuffer();
+
+  const isHeic =
+    ext === "heic" || ext === "heif" || type === "image/heic" || type === "image/heif";
+  if (isHeic) {
+    const convert = (await import("heic-convert")).default;
+    const output = await convert({ buffer: Buffer.from(arrayBuf), format: "JPEG", quality: 0.92 });
+    return {
+      body: output,
+      mimeType: "image/jpeg",
+      filename: name.replace(/\.(heic|heif)$/i, "") + ".jpg",
+    };
+  }
+
+  const mimeType =
+    type && type !== "application/octet-stream"
+      ? type
+      : EXT_MIME[ext] ?? "image/jpeg";
+  return { body: arrayBuf, mimeType, filename: name };
+}
+
 /**
  * Upload an image file to Shopify's staged storage and return the resourceUrl
- * to pass as a product `files` source. Verified against the live Admin API.
+ * to pass as a product `files` source. HEIC (iPhone) photos are transcoded to
+ * JPEG first. Verified against the live Admin API.
  */
 export async function uploadImage(file: File): Promise<string> {
+  const { body, mimeType, filename } = await normalizeImageForUpload(file);
+
   const staged = await adminFetch<{
     stagedUploadsCreate: {
       stagedTargets: {
@@ -185,8 +233,8 @@ export async function uploadImage(file: File): Promise<string> {
     {
       input: [
         {
-          filename: file.name || "image",
-          mimeType: file.type || "image/jpeg",
+          filename,
+          mimeType,
           resource: "IMAGE",
           httpMethod: "POST",
         },
@@ -200,12 +248,50 @@ export async function uploadImage(file: File): Promise<string> {
   // Push the bytes to the staged target (Google Cloud Storage).
   const form = new FormData();
   for (const p of target.parameters) form.append(p.name, p.value);
-  form.append("file", file, file.name || "image");
+  form.append("file", new Blob([body], { type: mimeType }), filename);
   const upload = await fetch(target.url, { method: "POST", body: form });
   if (!upload.ok) {
     throw new Error(`Image upload failed: HTTP ${upload.status}`);
   }
   return target.resourceUrl;
+}
+
+/** Upload several images (in parallel), returning their staged resourceUrls. */
+export async function uploadImages(files: File[]): Promise<string[]> {
+  return Promise.all(files.map((f) => uploadImage(f)));
+}
+
+/**
+ * Append images to an existing product's media gallery (does NOT replace the
+ * current photos — used on edit so galleries grow). `productSet` files would
+ * overwrite, so we use productCreateMedia instead.
+ */
+export async function appendProductMedia(
+  productId: string,
+  sources: string[]
+): Promise<void> {
+  if (sources.length === 0) return;
+  const data = await adminFetch<{
+    productCreateMedia: {
+      mediaUserErrors: { field?: string[]; message: string }[];
+    };
+  }>(
+    /* GraphQL */ `
+      mutation AddMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+        productCreateMedia(productId: $productId, media: $media) {
+          mediaUserErrors { field message }
+        }
+      }
+    `,
+    {
+      productId,
+      media: sources.map((originalSource) => ({
+        originalSource,
+        mediaContentType: "IMAGE",
+      })),
+    }
+  );
+  assertNoUserErrors(data.productCreateMedia.mediaUserErrors, "productCreateMedia");
 }
 
 interface ProductSetResult {
@@ -246,8 +332,11 @@ export async function createProduct(
       type: m.type,
       value: m.value,
     })),
-    files: input.imageSource
-      ? [{ originalSource: input.imageSource, contentType: "IMAGE" }]
+    files: input.imageSources?.length
+      ? input.imageSources.map((originalSource) => ({
+          originalSource,
+          contentType: "IMAGE",
+        }))
       : undefined,
     // A single-variant product still needs an explicit default option in
     // productSet (verified against the live API — omitting it errors).
@@ -256,7 +345,20 @@ export async function createProduct(
       {
         optionValues: [{ optionName: "Title", name: "Default Title" }],
         price: input.priceDollars,
-        inventoryItem: { tracked: true },
+        inventoryItem: {
+          tracked: true,
+          // Weight lives on the inventory item; Shopify uses it for shipping.
+          ...(input.weight != null && input.weight > 0
+            ? {
+                measurement: {
+                  weight: {
+                    value: input.weight,
+                    unit: input.weightUnit ?? DEFAULT_WEIGHT_UNIT,
+                  },
+                },
+              }
+            : {}),
+        },
         inventoryQuantities: [
           { locationId, name: "available", quantity: Math.max(0, input.stock) },
         ],
@@ -346,6 +448,10 @@ async function ensureMetafieldDefinitions(): Promise<void> {
 
 export type ProductStatus = "ACTIVE" | "DRAFT" | "ARCHIVED";
 
+/** Shopify weight units (used for shipping calculation). */
+export type WeightUnit = "OUNCES" | "POUNDS" | "GRAMS" | "KILOGRAMS";
+export const DEFAULT_WEIGHT_UNIT: WeightUnit = "OUNCES";
+
 export interface AdminProduct {
   id: string; // gid://shopify/Product/...
   legacyId: string; // numeric id, used for edit URLs
@@ -355,10 +461,14 @@ export interface AdminProduct {
   descriptionHtml: string;
   priceCents: number;
   stock: number;
+  weight?: number;
+  weightUnit: WeightUnit;
   category: Category;
   variantId?: string;
   inventoryItemId?: string;
   imageUrl?: string;
+  /** Full media gallery (featured image first). */
+  images: { url: string; altText?: string }[];
   // Boutique metafields (for the edit form + admin display).
   scientificName?: string;
   size?: string;
@@ -382,7 +492,16 @@ const ADMIN_PRODUCT_FIELDS = /* GraphQL */ `
   tags
   totalInventory
   featuredImage { url altText }
-  variants(first: 1) { edges { node { id price inventoryItem { id } } } }
+  images(first: 20) { edges { node { url altText } } }
+  variants(first: 1) {
+    edges {
+      node {
+        id
+        price
+        inventoryItem { id measurement { weight { value unit } } }
+      }
+    }
+  }
   metafields(first: 25, namespace: "${METAFIELD_NAMESPACE}") {
     edges { node { key value } }
   }
@@ -399,7 +518,19 @@ interface AdminProductNode {
   tags: string[];
   totalInventory: number | null;
   featuredImage: { url: string; altText: string | null } | null;
-  variants: { edges: { node: { id: string; price: string; inventoryItem: { id: string } | null } }[] };
+  images: { edges: { node: { url: string; altText: string | null } }[] };
+  variants: {
+    edges: {
+      node: {
+        id: string;
+        price: string;
+        inventoryItem: {
+          id: string;
+          measurement: { weight: { value: number; unit: WeightUnit } | null } | null;
+        } | null;
+      };
+    }[];
+  };
   metafields: { edges: { node: { key: string; value: string } }[] };
 }
 
@@ -437,10 +568,16 @@ function mapAdminProduct(node: AdminProductNode): AdminProduct {
     // stale/×100-wrong value after productVariantsBulkUpdate.
     priceCents: Math.round(parseFloat(variant?.price ?? "0") * 100),
     stock: Math.max(0, node.totalInventory ?? 0),
+    weight: variant?.inventoryItem?.measurement?.weight?.value ?? undefined,
+    weightUnit: variant?.inventoryItem?.measurement?.weight?.unit ?? DEFAULT_WEIGHT_UNIT,
     category: resolveCategory(node.productType, node.tags),
     variantId: variant?.id,
     inventoryItemId: variant?.inventoryItem?.id,
     imageUrl: node.featuredImage?.url,
+    images: node.images.edges.map((e) => ({
+      url: e.node.url,
+      altText: e.node.altText ?? undefined,
+    })),
     scientificName: mf.scientific_name || undefined,
     size: mf.size || undefined,
     light: mf.light || undefined,
@@ -490,18 +627,22 @@ export interface ProductUpdate {
   status: ProductStatus;
   priceDollars: string;
   stock: number;
+  weight?: number;
+  weightUnit?: WeightUnit;
   variantId?: string;
   inventoryItemId?: string;
   metafields?: { key: string; value: string; type: string }[];
-  imageSource?: string;
+  /** New images to APPEND to the existing gallery (does not replace photos). */
+  imageSources?: string[];
 }
 
-/** Update an existing product: core fields + metafields, price, stock, image. */
+/** Update an existing product: core fields + metafields, price, stock, images. */
 export async function updateProduct(input: ProductUpdate): Promise<void> {
   await ensureMetafieldDefinitions();
 
-  // 1. Core fields + metafields + (optional) new image via productSet by id.
-  //    No `variants` here, so we don't need the productOptions scaffold.
+  // 1. Core fields + metafields via productSet by id. No `files` here — new
+  //    images are appended separately (below) so the current gallery survives.
+  //    No `variants` either, so we don't need the productOptions scaffold.
   const setData = await adminFetch<ProductSetResult>(PRODUCT_SET, {
     input: {
       id: input.id,
@@ -516,15 +657,28 @@ export async function updateProduct(input: ProductUpdate): Promise<void> {
         type: m.type,
         value: m.value,
       })),
-      files: input.imageSource
-        ? [{ originalSource: input.imageSource, contentType: "IMAGE" }]
-        : undefined,
     },
   });
   assertNoUserErrors(setData.productSet.userErrors, "productSet(update)");
 
-  // 2. Price via productVariantsBulkUpdate.
+  // 1b. Append any newly uploaded images to the gallery.
+  if (input.imageSources?.length) {
+    await appendProductMedia(input.id, input.imageSources);
+  }
+
+  // 2. Price (+ weight) via productVariantsBulkUpdate.
   if (input.variantId) {
+    const variantInput: Record<string, unknown> = {
+      id: input.variantId,
+      price: input.priceDollars,
+    };
+    if (input.weight != null && input.weight > 0) {
+      variantInput.inventoryItem = {
+        measurement: {
+          weight: { value: input.weight, unit: input.weightUnit ?? DEFAULT_WEIGHT_UNIT },
+        },
+      };
+    }
     const priceData = await adminFetch<{
       productVariantsBulkUpdate: { userErrors: { field?: string[]; message: string }[] };
     }>(
@@ -535,7 +689,7 @@ export async function updateProduct(input: ProductUpdate): Promise<void> {
           }
         }
       `,
-      { productId: input.id, variants: [{ id: input.variantId, price: input.priceDollars }] }
+      { productId: input.id, variants: [variantInput] }
     );
     assertNoUserErrors(
       priceData.productVariantsBulkUpdate.userErrors,

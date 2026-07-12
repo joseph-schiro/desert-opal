@@ -106,6 +106,7 @@ const PRODUCTS_QUERY = /* GraphQL */ `
           tags
           totalInventory
           featuredImage { url altText }
+          images(first: 10) { edges { node { url altText } } }
           priceRange { minVariantPrice { amount currencyCode } }
           variants(first: 1) {
             edges { node { id availableForSale quantityAvailable } }
@@ -132,6 +133,7 @@ interface ShopifyProductNode {
   tags: string[];
   totalInventory: number | null;
   featuredImage: { url: string; altText: string | null } | null;
+  images: { edges: { node: { url: string; altText: string | null } }[] };
   priceRange: { minVariantPrice: { amount: string; currencyCode: string } };
   variants: {
     edges: {
@@ -227,6 +229,10 @@ function mapProduct(node: ShopifyProductNode): Product {
     emoji: mf.emoji || "🪴",
     imageUrl: node.featuredImage?.url,
     imageAlt: node.featuredImage?.altText ?? undefined,
+    images: node.images.edges.map((e) => ({
+      url: e.node.url,
+      altText: e.node.altText ?? undefined,
+    })),
   };
 }
 

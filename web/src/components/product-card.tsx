@@ -25,11 +25,6 @@ export function ProductCard({ product }: { product: Product }) {
             Sold out
           </span>
         )}
-        {!soldOut && product.stock <= 3 && (
-          <span className="absolute left-3 top-3 rounded-full bg-terracotta px-3 py-1 text-xs font-semibold text-white">
-            Only {product.stock} left
-          </span>
-        )}
         {product.variegated && (
           <span className="absolute right-3 top-3 rounded-full bg-mint/90 px-2.5 py-1 text-xs font-semibold text-sage-deep shadow-sm">
             🌿 Variegated
